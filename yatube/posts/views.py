@@ -85,7 +85,7 @@ def post_create(request: HttpRequest) -> HttpResponse:
     """Функция для публикации постов.
     """
     template = 'posts/create_post.html'
-    title = f'Создание поста'
+    title = 'Создание поста'
     if request.method == 'POST':
         form = PostForm(request.POST)
         if form.is_valid():
