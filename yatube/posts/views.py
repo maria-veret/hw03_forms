@@ -1,10 +1,12 @@
 from django.core.paginator import Paginator
 from django.shortcuts import render, redirect, get_object_or_404
+from django.contrib.auth.decorators import login_required
 from django.http import HttpRequest, HttpResponse
+from django.conf import settings
+from datetime import datetime
+
 from .models import Post, Group, User
 from .forms import PostForm
-from django.contrib.auth.decorators import login_required
-from datetime import datetime
 
 
 def index(request: HttpRequest) -> HttpResponse:
@@ -12,7 +14,7 @@ def index(request: HttpRequest) -> HttpResponse:
     """
     template = 'posts/index.html'
     post_list = Post.objects.all().order_by('-pub_date')
-    paginator = Paginator(post_list, 10)
+    paginator = Paginator(post_list, settings.PAGE)
     page_number = request.GET.get('page')
     page_obj = paginator.get_page(page_number)
     title = 'Последние обновления на сайте'
@@ -29,7 +31,7 @@ def group_posts(request: HttpRequest, slug: str) -> HttpResponse:
     template = 'posts/group_list.html'
     group = get_object_or_404(Group, slug=slug)
     posts = Post.objects.filter(group=group)
-    paginator = Paginator(posts, 10)
+    paginator = Paginator(posts, settings.PAGE)
     page_number = request.GET.get('page')
     page_obj = paginator.get_page(page_number)
     title = f'Записи сообщества {group}'
@@ -43,12 +45,13 @@ def group_posts(request: HttpRequest, slug: str) -> HttpResponse:
 
 
 def profile(request: HttpRequest, username: str) -> HttpResponse:
-    """Функция для профайла пользователя"""
+    """Функция для профайла пользователя.
+    """
     template = 'posts/profile.html'
     author = get_object_or_404(User, username=username)
-    posts = Post.objects.filter(author=author)
+    posts = author.posts.all()
     count_posts = author.posts.count()
-    paginator = Paginator(posts, 10)
+    paginator = Paginator(posts, settings.PAGE)
     page_number = request.GET.get('page')
     page_obj = paginator.get_page(page_number)
     title = f'Профайл пользователя {author}'
@@ -58,13 +61,13 @@ def profile(request: HttpRequest, username: str) -> HttpResponse:
         'count_posts': count_posts,
         'page_obj': page_obj,
         'title': title,
-
     }
     return render(request, template, context)
 
 
 def post_detail(request: HttpRequest, post_id: int) -> HttpResponse:
-    """Функция для просмотра записи"""
+    """Функция для просмотра записи.
+    """
     template = 'posts/post_detail.html'
     post = get_object_or_404(Post, pk=post_id)
     group = post.group
@@ -86,27 +89,26 @@ def post_create(request: HttpRequest) -> HttpResponse:
     """
     template = 'posts/create_post.html'
     title = 'Создание поста'
-    if request.method == 'POST':
-        form = PostForm(request.POST)
-        if form.is_valid():
-            post = form.save(commit=False)
-            post.author = request.user
-            post.pub_date = datetime.now()
-            post.save()
-            return redirect('posts:profile', request.user)
-        else:
-            context = {
-                'form': form,
-                'title': title,
-            }
-            return render(request, template, context)
-    else:
+    if request.method != 'POST':
         form = PostForm()
         context = {
             'form': form,
             'title': title,
         }
         return render(request, template, context)
+    form = PostForm(request.POST)
+    if not form.is_valid():
+        context = {
+            'form': form,
+            'title': title,
+        }
+        return render(request, template, context)
+    form = PostForm(request.POST)
+    post = form.save(commit=False)
+    post.author = request.user
+    post.pub_date = datetime.now()
+    post.save()
+    return redirect('posts:profile', request.user)
 
 
 @login_required
@@ -116,23 +118,8 @@ def post_edit(request: HttpRequest, post_id: int) -> HttpResponse:
     template = 'posts/update_post.html'
     post = get_object_or_404(Post, id=post_id, author=request.user)
     title = f'Редактрирование поста {post.id}'
-    if request.method == 'POST':
-        form = PostForm(request.POST, instance=post)
-        if form.is_valid():
-            post = form.save(commit=False)
-            post.author = request.user
-            post.pub_date = datetime.now()
-            post.save()
-            return redirect('posts:post_detail', post.id)
-        else:
-            context = {
-                'form': form,
-                'is_edit': True,
-                'title': title,
-            }
-            return render(request, template, context)
-    else:
-        form = PostForm(instance=post)
+    form = PostForm(instance=post)
+    if request.method != 'POST':
         context = {
             'form': form,
             'is_edit': True,
@@ -140,3 +127,16 @@ def post_edit(request: HttpRequest, post_id: int) -> HttpResponse:
             'title': title,
         }
         return render(request, template, context)
+    form = PostForm(request.POST, instance=post)
+    if not form.is_valid():
+        context = {
+            'form': form,
+            'is_edit': True,
+            'title': title,
+        }
+        return render(request, template, context)
+    post = form.save(commit=False)
+    post.author = request.user
+    post.pub_date = datetime.now()
+    post.save()
+    return redirect('posts:post_detail', post.id)
