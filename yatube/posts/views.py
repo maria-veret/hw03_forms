@@ -1,9 +1,10 @@
+from datetime import datetime
+
 from django.core.paginator import Paginator
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.http import HttpRequest, HttpResponse
 from django.conf import settings
-from datetime import datetime
 
 from .models import Post, Group, User
 from .forms import PostForm
@@ -13,7 +14,7 @@ def index(request: HttpRequest) -> HttpResponse:
     """Функция для главной страницы.
     """
     template = 'posts/index.html'
-    post_list = Post.objects.all().order_by('-pub_date')
+    post_list = Post.objects.all()
     paginator = Paginator(post_list, settings.PAGE)
     page_number = request.GET.get('page')
     page_obj = paginator.get_page(page_number)

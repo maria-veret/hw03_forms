@@ -30,4 +30,4 @@ class Post(models.Model):
         return self.text
 
     class Meta:
-        ordering = ["-pub_date"]
+        ordering = ['-pub_date']
