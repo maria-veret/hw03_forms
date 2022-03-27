@@ -27,7 +27,7 @@ class Post(models.Model):
                               verbose_name='Группа')
 
     def __str__(self) -> str:
-        return self.text
+        return self.text[:15]
 
     class Meta:
         ordering = ['-pub_date']
